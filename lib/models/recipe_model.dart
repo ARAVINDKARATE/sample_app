@@ -1,12 +1,12 @@
-import 'ingredient_model.dart';
+import 'package:sample_app/models/ingredient_model.dart';
 
 class Recipe {
-  final String id;
-  final String name;
-  final String description;
-  final String instructions;
-  final List<Ingredient> ingredients;
-  final String? imageUrl;
+  String id;
+  String name;
+  String description;
+  String instructions;
+  List<Ingredient> ingredients;
+  String? imageUrl;
 
   Recipe({
     required this.id,
@@ -17,6 +17,19 @@ class Recipe {
     this.imageUrl,
   });
 
+  // Factory constructor to create a Recipe from Firestore document data
+  factory Recipe.fromFirestore(Map<String, dynamic> data, String id) {
+    return Recipe(
+      id: id,
+      name: data['name'] ?? '',
+      description: data['description'] ?? '',
+      instructions: data['instructions'] ?? '',
+      ingredients: (data['ingredients'] as List<dynamic>).map((ingredientData) => Ingredient.fromFirestore(ingredientData as Map<String, dynamic>, '')).toList(),
+      imageUrl: data['imageUrl'],
+    );
+  }
+
+  // Method to convert Recipe instance to JSON format
   Map<String, dynamic> toJson() {
     return {
       'name': name,
@@ -25,16 +38,5 @@ class Recipe {
       'ingredients': ingredients.map((ingredient) => ingredient.toJson()).toList(),
       'imageUrl': imageUrl,
     };
-  }
-
-  factory Recipe.fromFirestore(Map<String, dynamic> data, String id) {
-    return Recipe(
-      id: id,
-      name: data['name'] as String? ?? '', // Provide a default value
-      description: data['description'] as String? ?? '', // Provide a default value
-      instructions: data['instructions'] as String? ?? '', // Provide a default value
-      ingredients: (data['ingredients'] as List<dynamic>? ?? []).map((item) => Ingredient.fromFirestore(item as Map<String, dynamic>, item['id'])).toList(),
-      imageUrl: data['imageUrl'] as String?, // imageUrl can be null
-    );
   }
 }

@@ -95,8 +95,15 @@ class _HomeScreenState extends State<HomeScreen> {
             )
           : _buildRecipeList(),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => RecipeScreen()));
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => RecipeScreen()),
+          );
+          if (result != null) {
+            // If a recipe was added or edited, refresh the recipe list
+            _fetchRecipes();
+          }
         },
         child: const Icon(Icons.add),
       ),
@@ -125,26 +132,40 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
-                  ? Image.network(
-                      recipe.imageUrl!,
-                      fit: BoxFit.cover,
-                      height: 150,
-                      width: double.infinity,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Column(
-                          children: [
-                            const Center(child: Text('Issue loading image')),
-                          ],
-                        );
-                      },
-                    )
-                  : Image.network(
-                      _defaultImageUrl,
-                      fit: BoxFit.cover,
-                      height: 150,
-                      width: double.infinity,
+              GestureDetector(
+                onTap: () async {
+                  // Navigate to the RecipeScreen to edit the recipe
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => RecipeScreen(recipe: recipe), // Pass the selected recipe
                     ),
+                  );
+                  if (result != null) {
+                    _fetchRecipes(); // Refresh the recipe list if updated
+                  }
+                },
+                child: recipe.imageUrl != null && recipe.imageUrl!.isNotEmpty
+                    ? Image.network(
+                        recipe.imageUrl!,
+                        fit: BoxFit.cover,
+                        height: 150,
+                        width: double.infinity,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Column(
+                            children: [
+                              const Center(child: Text('Issue loading image')),
+                            ],
+                          );
+                        },
+                      )
+                    : Image.network(
+                        _defaultImageUrl,
+                        fit: BoxFit.cover,
+                        height: 150,
+                        width: double.infinity,
+                      ),
+              ),
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: Text(
@@ -209,11 +230,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.all(8.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: recipe.ingredients
-                        .map((ingredient) => Text('• $ingredient')) // Adjust this based on your ingredients list structure
-                        .toList(),
+                    children: recipe.ingredients.isEmpty
+                        ? [Text('No ingredients available')] // Show this message if the list is empty
+                        : recipe.ingredients
+                            .map((ingredient) => Text('• ${ingredient.name} (${ingredient.quantity})')) // Display name and quantity
+                            .toList(),
                   ),
-                ),
+                )
               ],
             ],
           ),

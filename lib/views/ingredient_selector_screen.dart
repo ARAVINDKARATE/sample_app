@@ -119,7 +119,7 @@ class _IngredientsScreenState extends State<IngredientsScreen> {
                 final ingredient = _ingredients[index];
                 return ListTile(
                   title: Text(ingredient.name),
-                  subtitle: Text(ingredient.quantity),
+                  subtitle: Text(ingredient.quantity.toString()),
                   trailing: Checkbox(
                     value: _selectedIngredients.contains(ingredient),
                     onChanged: (bool? value) {
