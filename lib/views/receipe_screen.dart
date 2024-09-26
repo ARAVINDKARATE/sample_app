@@ -37,26 +37,46 @@ class _RecipeScreenState extends State<RecipeScreen> {
     });
   }
 
-  Future<void> _uploadImage(String imagePath) async {
-    final file = File(imagePath);
-    try {
-      String fileName = DateTime.now().millisecondsSinceEpoch.toString();
-      TaskSnapshot snapshot = await FirebaseStorage.instance.ref('recipes/$fileName.jpg').putFile(file);
+  Future<void> _uploadImage(XFile pickedFile) async {
+    final file = File(pickedFile.path);
+    String fileName = DateTime.now().millisecondsSinceEpoch.toString();
+    Reference ref = FirebaseStorage.instance.ref().child('files/$fileName.jpg');
 
-      if (snapshot.state == TaskState.success) {
-        String downloadUrl = await snapshot.ref.getDownloadURL();
-        setState(() {
-          _imageUrl = downloadUrl;
-        });
-        print("Image uploaded successfully: $_imageUrl");
-      } else {
-        print("Upload failed: ${snapshot.state}");
-      }
+    try {
+      await ref.putFile(file);
+      String downloadUrl = await ref.getDownloadURL();
+      setState(() {
+        _imageUrl = downloadUrl;
+      });
+      print("Image uploaded successfully: $_imageUrl");
     } catch (e) {
-      print("Error uploading image: ${e.toString()}");
-      if (e is FirebaseException) {
-        print("Firebase error code: ${e.code}");
-      }
+      print("Error uploading image: $e");
+    }
+  }
+
+  void _submitRecipe() {
+    if (_formKey.currentState!.validate()) {
+      _formKey.currentState!.save();
+
+      Recipe newRecipe = Recipe(
+        id: widget.recipe?.id ?? _firestore.collection('recipes').doc().id,
+        name: _name!,
+        description: _description!,
+        instructions: _instructions!,
+        ingredients: _selectedIngredients,
+        imageUrl: _imageUrl,
+      );
+
+      print("Submitting recipe: ${newRecipe.toJson()}");
+
+      _firestore.collection('recipes').doc(newRecipe.id).set(newRecipe.toJson()).then((_) {
+        print("Recipe saved successfully");
+        Navigator.pop(context, true);
+      }).catchError((error) {
+        print("Error saving recipe: $error");
+      });
+    } else {
+      print("Form validation failed");
     }
   }
 
@@ -66,58 +86,72 @@ class _RecipeScreenState extends State<RecipeScreen> {
       appBar: AppBar(
         title: Text(widget.recipe != null ? 'Edit Recipe' : 'Add Recipe'),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Recipe Name'),
+              _buildTextField(
+                label: 'Recipe Name',
                 initialValue: widget.recipe?.name ?? '',
                 onSaved: (value) => _name = value,
-                validator: (value) => value!.isEmpty ? 'Enter a recipe name' : null,
               ),
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Description'),
+              SizedBox(height: 20),
+              _buildTextField(
+                label: 'Description',
                 initialValue: widget.recipe?.description ?? '',
                 onSaved: (value) => _description = value,
               ),
-              TextFormField(
-                decoration: InputDecoration(labelText: 'Instructions'),
+              SizedBox(height: 20),
+              _buildTextField(
+                label: 'Instructions',
                 initialValue: widget.recipe?.instructions ?? '',
                 onSaved: (value) => _instructions = value,
               ),
-              Expanded(
-                child: _ingredients.isEmpty
-                    ? Center(child: Text('No ingredients found'))
-                    : ListView.builder(
-                        itemCount: _ingredients.length,
-                        itemBuilder: (context, index) {
-                          final ingredient = _ingredients[index];
-                          return CheckboxListTile(
-                            title: Text('${ingredient.name} (${ingredient.quantity})'),
-                            value: _selectedIngredients.contains(ingredient),
-                            onChanged: (bool? selected) {
-                              setState(() {
-                                if (selected == true) {
-                                  _selectedIngredients.add(ingredient);
-                                } else {
-                                  _selectedIngredients.remove(ingredient);
-                                }
-                              });
-                            },
-                          );
-                        },
-                      ),
-              ),
+              _ingredients.isEmpty
+                  ? Center(child: Text('No ingredients found'))
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      physics: NeverScrollableScrollPhysics(),
+                      itemCount: _ingredients.length,
+                      itemBuilder: (context, index) {
+                        final ingredient = _ingredients[index];
+                        return CheckboxListTile(
+                          title: Row(
+                            children: [
+                              ingredient.imageUrl != null
+                                  ? Image.network(
+                                      ingredient.imageUrl!,
+                                      width: 50,
+                                      height: 50,
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Container(width: 50, height: 50), // Placeholder if no image
+                              SizedBox(width: 10),
+                              Text('${ingredient.name} (${ingredient.quantity})'),
+                            ],
+                          ),
+                          value: _selectedIngredients.contains(ingredient),
+                          onChanged: (bool? selected) {
+                            setState(() {
+                              if (selected == true) {
+                                _selectedIngredients.add(ingredient);
+                              } else {
+                                _selectedIngredients.remove(ingredient);
+                              }
+                            });
+                          },
+                        );
+                      },
+                    ),
               IconButton(
                 icon: Icon(Icons.add_a_photo),
                 onPressed: () async {
                   final picker = ImagePicker();
                   final pickedFile = await picker.pickImage(source: ImageSource.gallery);
                   if (pickedFile != null) {
-                    await _uploadImage(pickedFile.path); // Upload the selected image
+                    await _uploadImage(pickedFile);
                   } else {
                     print("No image selected");
                   }
@@ -129,7 +163,7 @@ class _RecipeScreenState extends State<RecipeScreen> {
               ),
               if (_imageUrl != null) ...[
                 SizedBox(height: 10),
-                Image.network(_imageUrl!), // Display uploaded image
+                Image.network(_imageUrl!),
               ],
             ],
           ),
@@ -153,30 +187,26 @@ class _RecipeScreenState extends State<RecipeScreen> {
     );
   }
 
-  void _submitRecipe() {
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
-
-      Recipe newRecipe = Recipe(
-        id: widget.recipe?.id ?? _firestore.collection('recipes').doc().id,
-        name: _name!,
-        description: _description!,
-        instructions: _instructions!,
-        ingredients: _selectedIngredients,
-        imageUrl: _imageUrl, // Store the image URL in the recipe
-      );
-
-      print("Submitting recipe: ${newRecipe.toJson()}");
-
-      _firestore.collection('recipes').doc(newRecipe.id).set(newRecipe.toJson()).then((_) {
-        print("Recipe saved successfully");
-        Navigator.pop(context, true);
-      }).catchError((error) {
-        print("Error saving recipe: $error");
-        // Optionally show a Snackbar or Toast message here
-      });
-    } else {
-      print("Form validation failed");
-    }
+  Widget _buildTextField({
+    required String label,
+    required String initialValue,
+    required Function(String?) onSaved,
+  }) {
+    return TextFormField(
+      decoration: InputDecoration(
+        labelText: label,
+        border: OutlineInputBorder(),
+        filled: true,
+        fillColor: Colors.grey[200],
+      ),
+      initialValue: initialValue,
+      onSaved: onSaved,
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please enter $label';
+        }
+        return null;
+      },
+    );
   }
 }
