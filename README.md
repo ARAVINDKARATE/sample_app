@@ -1,16 +1,39 @@
-# sample_app
+# Recipe Finder — Flutter
 
-A new Flutter project.
+Choose the ingredients you have, get the recipes you can make. Backed by
+Firestore rather than a bundled JSON file.
 
-## Getting Started
+## Features
 
-This project is a starting point for a Flutter application.
+- Ingredient selector driving a recipe query
+- Recipes and ingredients stored in **Cloud Firestore**
+- Recipe images in **Firebase Storage**, uploaded from camera or gallery
+  (`image_picker`)
 
-A few resources to get you started if this is your first Flutter project:
+## Structure
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```
+lib/
+├── models/  recipe_model.dart · ingredient_model.dart
+└── views/
+    ├── home_screen.dart
+    ├── ingredient_selector_screen.dart
+    └── receipe_screen.dart
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Setup
+
+Needs your own Firebase project:
+
+1. Create a project and enable **Firestore** and **Storage**
+2. Run `flutterfire configure`
+3. Add your `google-services.json` / `GoogleService-Info.plist`
+
+```bash
+flutter pub get
+flutter run
+```
+
+## Stack
+
+Flutter · Dart · cloud_firestore · firebase_storage · firebase_core · image_picker
